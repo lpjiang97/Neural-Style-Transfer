@@ -128,21 +128,18 @@ class LossNet():
         return style_losses, content_losses
     
     def train(self, epochs):
-        print('Building the style transfer model..')
+        print('Start model...')
         style_losses, content_losses = self.build_model()
 
-        print('Optimizing..')
         run = [0]
         while run[0] <= epochs:
-
+            print(run[0])
             def closure():
                 # correct the values of updated input image
                 self.x.data.clamp_(0, 1)
 
                 self.optimizer.zero_grad()
-                print("forward...")
                 self.model(self.x)
-                print("finish forward...")
                 style_score = 0
                 content_score = 0
 
@@ -155,9 +152,7 @@ class LossNet():
                 content_score *= self.content_weight
 
                 loss = style_score + content_score
-                print("backward...")
                 loss.backward()
-                print("finish backward...")
 
                 run[0] += 1
                 if run[0] % 50 == 0:
@@ -181,7 +176,7 @@ def main():
     assert style_img.size() == content_img.size(), \
         "we need to import style and content images of the same size"
     lossnet = LossNet(content_img, style_img)
-    lossnet.train(100)
+    lossnet.train(300)
     image_saver(lossnet.x, "test.png")
 
 

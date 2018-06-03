@@ -4,9 +4,7 @@ from PIL import Image
 from torch.cuda import is_available
 import torchvision.transforms as transforms
 
-
-def imsize():
-    return 512 if is_available else 128
+IMSIZE = 512 if is_available else 128
 
 
 def create_loader(imsize):
@@ -17,14 +15,15 @@ def create_loader(imsize):
 def image_loader(image_name, device):
     image = Image.open(image_name)
     # batch size 1
-    loader = create_loader(imsize())
+    loader = create_loader(IMSIZE)
     image = loader(image).unsqueeze(0)
     return image.to(device, torch.float)
 
 
 def image_saver(input, path):
     image = input.data.clone().cpu()
-    image = image.view(3, imsize, imsize)
+    image = image.view(3, IMSIZE, IMSIZE)
     unloader = transforms.ToPILImage()
     image = unloader(image)
     scipy.misc.imsave(path, image)
+
