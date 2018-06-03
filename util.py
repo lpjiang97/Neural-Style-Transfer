@@ -1,10 +1,10 @@
 import scipy
 import torch
 from PIL import Image
-from torch.cuda import is_available
 import torchvision.transforms as transforms
 
-IMSIZE = 512 if is_available else 128
+
+IMSIZE = 256
 
 
 def create_loader(imsize):

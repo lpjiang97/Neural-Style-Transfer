@@ -75,7 +75,28 @@ class LossNet():
         self.content_weight = content_weight
         # pre-trained net
         self.vgg = models.vgg19(pretrained=True).features.to(device).eval()
-        self.optimizer = optim.LBFGS([self.x.requires_grad_()])
+        # transformation net
+        self.trans_net = nn.Sequential(
+            nn.ReflectionPad2d(40),
+            nn.Conv2d(3, 32, 9, stride=1, padding=4),
+            nn.Conv2d(32, 64, 3, stride=2, padding=1),
+            nn.Conv2d(64, 128, 3, stride=2, padding=1),
+            nn.Conv2d(128, 128, 3, stride=1, padding=0),
+            nn.Conv2d(128, 128, 3, stride=1, padding=0),
+            nn.Conv2d(128, 128, 3, stride=1, padding=0),
+            nn.Conv2d(128, 128, 3, stride=1, padding=0),
+            nn.Conv2d(128, 128, 3, stride=1, padding=0),
+            nn.Conv2d(128, 128, 3, stride=1, padding=0),
+            nn.Conv2d(128, 128, 3, stride=1, padding=0),
+            nn.Conv2d(128, 128, 3, stride=1, padding=0),
+            nn.Conv2d(128, 128, 3, stride=1, padding=0),
+            nn.Conv2d(128, 128, 3, stride=1, padding=0),
+            nn.ConvTranspose2d(128, 64, 3, stride=2, padding=1, output_padding=1),
+            nn.ConvTranspose2d(64, 32, 3, stride=2, padding=1, output_padding=1),
+            nn.Conv2d(32, 3, 9, stride=1, padding=4),
+        )
+        # optimizer
+        self.optimizer = optim.Adam(self.trans_net.parameters(), lr=1e-3)
         # start with norm layer 
         self.model = nn.Sequential(Normalization(
             torch.tensor([0.485, 0.456, 0.406]).to(device), 
@@ -133,7 +154,6 @@ class LossNet():
 
         run = [0]
         while run[0] <= epochs:
-            print(run[0])
             def closure():
                 # correct the values of updated input image
                 self.x.data.clamp_(0, 1)
