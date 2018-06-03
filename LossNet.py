@@ -8,48 +8,48 @@ from torch.autograd import Variable
 import matplotlib.pyplot as plt
 from PIL import Image
 import scipy.misc
+from util import *
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 def gram(x):
     batch, channel, width, height = x.size()
     # flatten features
-    x = x.view(batch * channel, width * height)
+    features = x.view(batch * channel, width * height)
     # gram matrix
-    G = torch.mm(x, x.t())
+    G = torch.mm(features, features.t())
     # normalize
     return G.div(batch * channel * width * height)
 
 
 class StyleLoss(nn.Module):
-    
-    def __init__(self, target):
+
+    def __init__(self, target_feature):
         super(StyleLoss, self).__init__()
-        self.target = gram(target).detach()
-        
-    def forward(self, x):
-        # Gram matrix is defined as the gram matrix of all vectors
-        self.loss = F.mse_loss(self.target, gram(x))
-        return x    
+        self.target = gram(target_feature).detach()
+
+    def forward(self, input):
+        G = gram(input)
+        self.loss = F.mse_loss(G, self.target)
+        return input
 
 
 class ContentLoss(nn.Module):
-    
-    def __init__(self, target):
+
+    def __init__(self, target,):
         super(ContentLoss, self).__init__()
         self.target = target.detach()
-        
-    def forward(self, x):
-        self.loss = F.mse_loss(self.target, x)
-        return x
+
+    def forward(self, input):
+        self.loss = F.mse_loss(input, self.target)
+        return input
 
 
 class Normalization(nn.Module):
     def __init__(self, mean, std):
         super(Normalization, self).__init__()
-        # .view the mean and std to make them [C x 1 x 1] so that they can
-        # directly work with image Tensor of shape [B x C x H x W].
-        # B is batch size. C is number of channels. H is height and W is width.
         self.mean = torch.tensor(mean).view(-1, 1, 1)
         self.std = torch.tensor(std).view(-1, 1, 1)
 
@@ -58,30 +58,9 @@ class Normalization(nn.Module):
         return (img - self.mean) / self.std
 
 
-imsize = 512 if torch.cuda.is_available() else 128  # use small size if no gpu
-
-loader = transforms.Compose([
-    transforms.Resize((imsize, imsize)),  # scale imported image
-    transforms.ToTensor()])  # transform it into a torch tensor
-
-
-def image_loader(image_name):
-    image = Image.open(image_name)
-    # fake batch dimension required to fit network's input dimensions
-    image = loader(image).unsqueeze(0)
-    return image.to(device, torch.float)
-
-unloader = transforms.ToPILImage()
-  
-def save_image(input, path):
-    image = input.data.clone().cpu()
-    image = image.view(3, imsize, imsize)
-    image = unloader(image)
-    scipy.misc.imsave(path, image)
-
 class LossNet():
     
-    def __init__(self, content, style, style_weight=100000, content_weight=1):
+    def __init__(self, content, style, style_weight=1000000, content_weight=1):
         # content image
         self.content = content
         # style image
@@ -98,7 +77,9 @@ class LossNet():
         self.vgg = models.vgg19(pretrained=True).features.to(device).eval()
         self.optimizer = optim.LBFGS([self.x.requires_grad_()])
         # start with norm layer 
-        self.model = nn.Sequential(Normalization(torch.tensor([0.485, 0.456, 0.406]).to(device), torch.tensor([0.229, 0.224, 0.225]).to(device)))
+        self.model = nn.Sequential(Normalization(
+            torch.tensor([0.485, 0.456, 0.406]).to(device), 
+            torch.tensor([0.229, 0.224, 0.225]).to(device)))
     
     def build_model(self):
         content_losses = []
@@ -159,7 +140,9 @@ class LossNet():
                 self.x.data.clamp_(0, 1)
 
                 self.optimizer.zero_grad()
+                print("forward...")
                 self.model(self.x)
+                print("finish forward...")
                 style_score = 0
                 content_score = 0
 
@@ -172,12 +155,15 @@ class LossNet():
                 content_score *= self.content_weight
 
                 loss = style_score + content_score
+                print("backward...")
                 loss.backward()
+                print("finish backward...")
 
                 run[0] += 1
                 if run[0] % 50 == 0:
                     print("run {}:".format(run))
-                    print('Style Loss : {:4f} Content Loss: {:4f}'.format(style_score, content_score))
+                    print('Style Loss : {:4f} Content Loss: {:4f}'.format(
+                        style_score.item(), content_score.item()))
                     print()
 
                 return style_score + content_score
@@ -189,14 +175,15 @@ class LossNet():
 
 
 def main():
-    style_img = image_loader("images/starry.jpg")
-    content_img = image_loader("images/max.jpg")
+    style_img = image_loader("images/starry.jpg", device)
+    content_img = image_loader("images/max.jpg", device)
 
     assert style_img.size() == content_img.size(), \
         "we need to import style and content images of the same size"
     lossnet = LossNet(content_img, style_img)
     lossnet.train(100)
-    save_image(lossnet.x, "test.png")
+    image_saver(lossnet.x, "test.png")
+
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,30 @@
+import scipy
+import torch
+from PIL import Image
+from torch.cuda import is_available
+import torchvision.transforms as transforms
+
+
+def imsize():
+    return 512 if is_available else 128
+
+
+def create_loader(imsize):
+    return transforms.Compose([
+        transforms.Resize((imsize, imsize)), transforms.ToTensor()])
+
+
+def image_loader(image_name, device):
+    image = Image.open(image_name)
+    # batch size 1
+    loader = create_loader(imsize())
+    image = loader(image).unsqueeze(0)
+    return image.to(device, torch.float)
+
+
+def image_saver(input, path):
+    image = input.data.clone().cpu()
+    image = image.view(3, imsize, imsize)
+    unloader = transforms.ToPILImage()
+    image = unloader(image)
+    scipy.misc.imsave(path, image)

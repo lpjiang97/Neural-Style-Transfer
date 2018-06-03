@@ -7,3 +7,7 @@
 
 # experiment images
 experiments/
+
+# cache
+__pycache__
+*.pyc
