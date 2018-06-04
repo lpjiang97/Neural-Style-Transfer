@@ -94,7 +94,7 @@ class LossNet():
             nn.ConvTranspose2d(128, 64, 3, stride=2, padding=1, output_padding=1),
             nn.ConvTranspose2d(64, 32, 3, stride=2, padding=1, output_padding=1),
             nn.Conv2d(32, 3, 9, stride=1, padding=4),
-        )
+        ).to(device)
         # optimizer
         self.optimizer = optim.Adam(self.trans_net.parameters(), lr=1e-3)
         # start with norm layer 
@@ -148,17 +148,20 @@ class LossNet():
         self.model = self.model[:(i + 1)]
         return style_losses, content_losses
     
-    def train(self, epochs):
+    def train(self, content):
         print('Start model...')
         style_losses, content_losses = self.build_model()
 
         run = [0]
         while run[0] <= epochs:
+            # we use Adam now, now need for closure 
+            
             def closure():
                 # correct the values of updated input image
                 self.x.data.clamp_(0, 1)
 
                 self.optimizer.zero_grad()
+                self.x = self.trans_net(self.x)
                 self.model(self.x)
                 style_score = 0
                 content_score = 0
@@ -183,8 +186,8 @@ class LossNet():
 
                 return style_score + content_score
 
-            self.optimizer.step(closure)
-
+            closura
+            self.optimizer.step()
         # a last correction...
         self.x.data.clamp_(0, 1)
 
