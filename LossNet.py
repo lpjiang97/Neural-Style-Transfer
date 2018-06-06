@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import scipy.misc
 from util import *
+from sys import argv
+import os
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -133,7 +135,6 @@ class LossNet():
 
         run = [0]
         while run[0] <= epochs:
-            print(run[0])
             def closure():
                 # correct the values of updated input image
                 self.x.data.clamp_(0, 1)
@@ -169,15 +170,25 @@ class LossNet():
         self.x.data.clamp_(0, 1)
 
 
-def main():
-    style_img = image_loader("images/starry.jpg", device)
-    content_img = image_loader("images/max.jpg", device)
+def train_all():
+   
+    content_images = os.listdir("image/")
+    style_images = os.listdir("style/")
 
-    assert style_img.size() == content_img.size(), \
-        "we need to import style and content images of the same size"
-    lossnet = LossNet(content_img, style_img)
-    lossnet.train(300)
-    image_saver(lossnet.x, "test.png")
+    for content_image in content_images:
+        for style_image in style_images:
+            output_name = content_image[:-4] + "-" + style_image[:-4]
+            style_img = image_loader("style/" + style_image, device) 
+            content_img = image_loader("image/" + content_image, device) 
+            # loss net
+            lossnet = LossNet(content_img, style_img)
+            lossnet.train(300)
+            image_saver(lossnet.x, "output/" + output_name + ".jpg")
+            print("one image done!")
+    
+
+def main():
+    train_all()
 
 
 if __name__ == "__main__":
